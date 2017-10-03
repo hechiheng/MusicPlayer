@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="5dp" >
+
+    <ImageView
+        android:id="@+id/musiclist_image"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/music" />
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_toRightOf="@id/musiclist_image" >
+
+        <TextView
+            android:id="@+id/musiclist_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="歌曲标题"
+            android:textSize="18sp" />
+
+        <ImageView
+            android:id="@+id/musiclist_playing"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:layout_toRightOf="@id/musiclist_title"
+            android:src="@drawable/playing" 
+            android:layout_margin="3dp"
+            android:layout_alignBottom="@id/musiclist_title"/>
+
+        <TextView
+            android:id="@+id/musiclist_artist"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignLeft="@id/musiclist_title"
+            android:layout_alignParentBottom="true"
+            android:text="歌手"
+            android:textColor="#AAAAAA" />
+
+        <TextView
+            android:id="@+id/musiclist_size"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:text="3.1MB"
+            android:textColor="#AAAAAA" />
+
+        <TextView
+            android:id="@+id/musiclist_duration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentRight="true"
+            android:text="3:20"
+            android:textColor="#AAAAAA" />
+    </RelativeLayout>
+
+</RelativeLayout>
