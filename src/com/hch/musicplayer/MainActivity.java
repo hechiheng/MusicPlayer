@@ -17,6 +17,7 @@ import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.media.MediaPlayer;
+import android.media.MediaPlayer.OnCompletionListener;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -33,6 +34,7 @@ import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.SimpleAdapter;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class MainActivity extends Activity {
 	private static String tag = "MainActivityLog";
@@ -50,7 +52,8 @@ public class MainActivity extends Activity {
 	private String musicDuration;
 	private SharedPreferences sharedPreferences;
 	private SharedPreferences.Editor sharedPreferences_Editor;
-	private int duration;
+	private int duration;// 歌曲时长
+	private int currentposition;// 播放歌曲当前时间
 
 	private Handler handler = new Handler() {
 		@Override
@@ -88,6 +91,7 @@ public class MainActivity extends Activity {
 		sharedPreferences_Editor = sharedPreferences.edit();
 		musicIndex = sharedPreferences.getInt("musicIndex", -1);
 		duration = sharedPreferences.getInt("duration", 0);
+		currentposition = sharedPreferences.getInt("currentposition", 0);
 
 		Cursor cursor = getContentResolver().query(
 				MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, null, null, null,
@@ -166,125 +170,36 @@ public class MainActivity extends Activity {
 		if (musicIndex > -1) {
 			String title = (String) musicList.get(musicIndex).get("title");
 			String artist = (String) musicList.get(musicIndex).get("artist");
-			String url = (String) musicList.get(musicIndex).get("url");
+			music_title.setText(title);
+			music_artist.setText(artist);
+			music_seekbar.setMax(duration);// 设置进度条
+			music_seekbar.setProgress(currentposition);
+			musicList.get(musicIndex).put("playingImg", R.drawable.playing1);
+			adapter.notifyDataSetChanged();
+			musicListView.smoothScrollToPosition(musicIndex);
 
-			try {
-				mediaPlayer.setDataSource(url);
-				mediaPlayer.prepare();
-				mediaPlayer.seekTo(duration);
-
-				music_title.setText(title);
-				music_artist.setText(artist);
-				music_seekbar.setMax(mediaPlayer.getDuration());// 设置进度条
-				music_seekbar.setProgress(duration);
-				musicList.get(musicIndex)
-						.put("playingImg", R.drawable.playing1);
-				adapter.notifyDataSetChanged();
-				musicListView.smoothScrollToPosition(musicIndex);
-
-				String currentDuration = String.format(
-						"%02d:%02d",
-						TimeUnit.MILLISECONDS.toMinutes(duration),
-						TimeUnit.MILLISECONDS.toSeconds(duration)
-								- TimeUnit.MINUTES
-										.toSeconds(TimeUnit.MILLISECONDS
-												.toMinutes(duration)));
-				musicDuration = String.format(
-						"%02d:%02d",
-						TimeUnit.MILLISECONDS.toMinutes(mediaPlayer
-								.getDuration()),
-						TimeUnit.MILLISECONDS.toSeconds(mediaPlayer
-								.getDuration())
-								- TimeUnit.MINUTES
-										.toSeconds(TimeUnit.MILLISECONDS
-												.toMinutes(mediaPlayer
-														.getDuration())));
-				String durationShow = currentDuration + "/" + musicDuration;
-				music_duration.setText(durationShow);
-
-			} catch (IOException e) {
-				Log.e(tag, Log.getStackTraceString(e));
-			}
-
+			String currentDuration = String.format(
+					"%02d:%02d",
+					TimeUnit.MILLISECONDS.toMinutes(currentposition),
+					TimeUnit.MILLISECONDS.toSeconds(currentposition)
+							- TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS
+									.toMinutes(currentposition)));
+			musicDuration = String.format(
+					"%02d:%02d",
+					TimeUnit.MILLISECONDS.toMinutes(mediaPlayer.getDuration()),
+					TimeUnit.MILLISECONDS.toSeconds(mediaPlayer.getDuration())
+							- TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS
+									.toMinutes(mediaPlayer.getDuration())));
+			String durationShow = currentDuration + "/" + musicDuration;
+			music_duration.setText(durationShow);
 		}
 
 		musicListView.setOnItemClickListener(new OnItemClickListener() {
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view,
 					int position, long id) {
-				String title = (String) musicList.get(position).get("title");
-				String artist = (String) musicList.get(position).get("artist");
-				String url = (String) musicList.get(position).get("url");
-				// Toast.makeText(MainActivity.this, url, Toast.LENGTH_SHORT)
-				// .show();
-
-				if (musicIndex != -1) {
-					musicList.get(musicIndex).put("playingImg", null);
-				}
-				musicList.get(position).put("playingImg", R.drawable.playing1);
-				Message message = new Message();
-				message.what = 2;
-				handler.sendMessage(message);
-
-				if (timerTask != null) {
-					timerTask.cancel();
-				}
-				try {
-					mediaPlayer.stop();
-					mediaPlayer.seekTo(0);
-					mediaPlayer.setDataSource(url);
-					mediaPlayer.prepare();
-					mediaPlayer.start();
-
-					musicDuration = String.format(
-							"%02d:%02d",
-							TimeUnit.MILLISECONDS.toMinutes(mediaPlayer
-									.getDuration()),
-							TimeUnit.MILLISECONDS.toSeconds(mediaPlayer
-									.getDuration())
-									- TimeUnit.MINUTES
-											.toSeconds(TimeUnit.MILLISECONDS
-													.toMinutes(mediaPlayer
-															.getDuration())));
-
-					music_title.setText(title);
-					music_artist.setText(artist);
-					music_seekbar.setMax(mediaPlayer.getDuration());// 设置进度条
-
-					timerTask = new TimerTask() {
-						@Override
-						public void run() {
-							if (isSeekBarChanging) {
-								return;
-							}
-							music_seekbar.setProgress(mediaPlayer
-									.getCurrentPosition());
-
-							String currentDuration = String.format(
-									"%02d:%02d",
-									TimeUnit.MILLISECONDS.toMinutes(mediaPlayer
-											.getCurrentPosition()),
-									TimeUnit.MILLISECONDS.toSeconds(mediaPlayer
-											.getCurrentPosition())
-											- TimeUnit.MINUTES
-													.toSeconds(TimeUnit.MILLISECONDS
-															.toMinutes(mediaPlayer
-																	.getCurrentPosition())));
-							String durationShow = currentDuration + "/"
-									+ musicDuration;
-							Message message = new Message();
-							message.what = 1;
-							message.getData().putString("durationShow",
-									durationShow);
-							handler.sendMessage(message);
-						}
-					};
-					timer.schedule(timerTask, 0, 10);
-
-				} catch (IOException e) {
-					Log.e(tag, Log.getStackTraceString(e));
-				}
-				musicIndex = position;
+				mediaPlayer.reset();
+				playMusic(position, 0);
 			}
 		});
 
@@ -304,6 +219,14 @@ public class MainActivity extends Activity {
 			@Override
 			public void onProgressChanged(SeekBar seekBar, int progress,
 					boolean fromUser) {
+				if (progress == music_seekbar.getMax() && !isSeekBarChanging) {
+					int position = musicIndex + 1;
+					if (position > musicList.size() - 1) {
+						position = 0;
+					}
+					mediaPlayer.reset();
+					playMusic(position, 0);
+				}
 			}
 		});
 
@@ -319,36 +242,7 @@ public class MainActivity extends Activity {
 					timerTask.cancel();
 				} else {
 					playButton.setBackgroundResource(R.drawable.pausebutton);
-					mediaPlayer.start();
-					timerTask = new TimerTask() {
-						@Override
-						public void run() {
-							if (isSeekBarChanging) {
-								return;
-							}
-							music_seekbar.setProgress(mediaPlayer
-									.getCurrentPosition());
-
-							String currentDuration = String.format(
-									"%02d:%02d",
-									TimeUnit.MILLISECONDS.toMinutes(mediaPlayer
-											.getCurrentPosition()),
-									TimeUnit.MILLISECONDS.toSeconds(mediaPlayer
-											.getCurrentPosition())
-											- TimeUnit.MINUTES
-													.toSeconds(TimeUnit.MILLISECONDS
-															.toMinutes(mediaPlayer
-																	.getCurrentPosition())));
-							String durationShow = currentDuration + "/"
-									+ musicDuration;
-							Message message = new Message();
-							message.what = 1;
-							message.getData().putString("durationShow",
-									durationShow);
-							handler.sendMessage(message);
-						}
-					};
-					timer.schedule(timerTask, 0, 10);
+					playMusic(musicIndex, currentposition);
 				}
 
 			}
@@ -360,80 +254,12 @@ public class MainActivity extends Activity {
 				if (musicIndex == -1) {
 					return;
 				}
-				if (musicIndex - 1 < 0) {
+				int position = musicIndex - 1;
+				if (position < 0) {
 					return;
 				}
-				int position = musicIndex - 1;
-				String title = (String) musicList.get(position).get("title");
-				String artist = (String) musicList.get(position).get("artist");
-				String url = (String) musicList.get(position).get("url");
-
-				musicList.get(musicIndex).put("playingImg", null);
-				musicList.get(position).put("playingImg", R.drawable.playing1);
-				Message message = new Message();
-				message.what = 2;
-				handler.sendMessage(message);
-				musicListView.smoothScrollToPosition(position);
-
-				if (timerTask != null) {
-					timerTask.cancel();
-				}
-				try {
-					mediaPlayer.stop();
-					mediaPlayer.seekTo(0);
-					mediaPlayer.setDataSource(url);
-					mediaPlayer.prepare();
-					mediaPlayer.start();
-
-					musicDuration = String.format(
-							"%02d:%02d",
-							TimeUnit.MILLISECONDS.toMinutes(mediaPlayer
-									.getDuration()),
-							TimeUnit.MILLISECONDS.toSeconds(mediaPlayer
-									.getDuration())
-									- TimeUnit.MINUTES
-											.toSeconds(TimeUnit.MILLISECONDS
-													.toMinutes(mediaPlayer
-															.getDuration())));
-
-					music_title.setText(title);
-					music_artist.setText(artist);
-					music_seekbar.setMax(mediaPlayer.getDuration());// 设置进度条
-
-					timerTask = new TimerTask() {
-						@Override
-						public void run() {
-							if (isSeekBarChanging) {
-								return;
-							}
-							music_seekbar.setProgress(mediaPlayer
-									.getCurrentPosition());
-
-							String currentDuration = String.format(
-									"%02d:%02d",
-									TimeUnit.MILLISECONDS.toMinutes(mediaPlayer
-											.getCurrentPosition()),
-									TimeUnit.MILLISECONDS.toSeconds(mediaPlayer
-											.getCurrentPosition())
-											- TimeUnit.MINUTES
-													.toSeconds(TimeUnit.MILLISECONDS
-															.toMinutes(mediaPlayer
-																	.getCurrentPosition())));
-							String durationShow = currentDuration + "/"
-									+ musicDuration;
-							Message message = new Message();
-							message.what = 1;
-							message.getData().putString("durationShow",
-									durationShow);
-							handler.sendMessage(message);
-						}
-					};
-					timer.schedule(timerTask, 0, 10);
-
-				} catch (IOException e) {
-					Log.e(tag, Log.getStackTraceString(e));
-				}
-				musicIndex = position;
+				mediaPlayer.reset();
+				playMusic(position, 0);
 
 			}
 		});
@@ -441,60 +267,61 @@ public class MainActivity extends Activity {
 		nextButton.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				if (musicIndex == -1) {
-					return;
-				}
-				if (musicIndex + 1 > musicList.size() - 1) {
-					return;
-				}
 				int position = musicIndex + 1;
-				String title = (String) musicList.get(position).get("title");
-				String artist = (String) musicList.get(position).get("artist");
-				String url = (String) musicList.get(position).get("url");
-
-				musicList.get(musicIndex).put("playingImg", null);
-				musicList.get(position).put("playingImg", R.drawable.playing1);
-				Message message = new Message();
-				message.what = 2;
-				handler.sendMessage(message);
-				musicListView.smoothScrollToPosition(position);
-
-				if (timerTask != null) {
-					timerTask.cancel();
+				if (position > musicList.size() - 1) {
+					return;
 				}
-				try {
-					mediaPlayer.stop();
-					mediaPlayer.seekTo(0);
-					mediaPlayer.setDataSource(url);
-					mediaPlayer.prepare();
-					mediaPlayer.start();
+				mediaPlayer.reset();
+				playMusic(position, 0);
+			}
+		});
 
-					musicDuration = String.format(
-							"%02d:%02d",
-							TimeUnit.MILLISECONDS.toMinutes(mediaPlayer
-									.getDuration()),
-							TimeUnit.MILLISECONDS.toSeconds(mediaPlayer
-									.getDuration())
-									- TimeUnit.MINUTES
-											.toSeconds(TimeUnit.MILLISECONDS
-													.toMinutes(mediaPlayer
-															.getDuration())));
+	}
 
-					music_title.setText(title);
-					music_artist.setText(artist);
-					music_seekbar.setMax(mediaPlayer.getDuration());// 设置进度条
+	private void playMusic(int position, int duration) {
+		String title = (String) musicList.get(position).get("title");
+		String artist = (String) musicList.get(position).get("artist");
+		String url = (String) musicList.get(position).get("url");
 
-					timerTask = new TimerTask() {
-						@Override
-						public void run() {
-							if (isSeekBarChanging) {
-								return;
-							}
-							music_seekbar.setProgress(mediaPlayer
-									.getCurrentPosition());
+		if (musicIndex != -1) {
+			musicList.get(musicIndex).put("playingImg", null);
+		}
+		musicList.get(position).put("playingImg", R.drawable.playing1);
+		Message message = new Message();
+		message.what = 2;
+		handler.sendMessage(message);
+		musicListView.smoothScrollToPosition(position);
 
-							String currentDuration = String.format(
-									"%02d:%02d",
+		if (timerTask != null) {
+			timerTask.cancel();
+		}
+		try {
+			mediaPlayer.setDataSource(url);
+			mediaPlayer.prepare();
+			mediaPlayer.seekTo(duration);
+			mediaPlayer.start();
+
+			musicDuration = String.format(
+					"%02d:%02d",
+					TimeUnit.MILLISECONDS.toMinutes(mediaPlayer.getDuration()),
+					TimeUnit.MILLISECONDS.toSeconds(mediaPlayer.getDuration())
+							- TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS
+									.toMinutes(mediaPlayer.getDuration())));
+
+			music_title.setText(title);
+			music_artist.setText(artist);
+			music_seekbar.setMax(mediaPlayer.getDuration());// 设置进度条
+
+			timerTask = new TimerTask() {
+				@Override
+				public void run() {
+					if (isSeekBarChanging) {
+						return;
+					}
+					music_seekbar.setProgress(mediaPlayer.getCurrentPosition());
+
+					String currentDuration = String
+							.format("%02d:%02d",
 									TimeUnit.MILLISECONDS.toMinutes(mediaPlayer
 											.getCurrentPosition()),
 									TimeUnit.MILLISECONDS.toSeconds(mediaPlayer
@@ -503,25 +330,19 @@ public class MainActivity extends Activity {
 													.toSeconds(TimeUnit.MILLISECONDS
 															.toMinutes(mediaPlayer
 																	.getCurrentPosition())));
-							String durationShow = currentDuration + "/"
-									+ musicDuration;
-							Message message = new Message();
-							message.what = 1;
-							message.getData().putString("durationShow",
-									durationShow);
-							handler.sendMessage(message);
-						}
-					};
-					timer.schedule(timerTask, 0, 10);
-
-				} catch (IOException e) {
-					Log.e(tag, Log.getStackTraceString(e));
+					String durationShow = currentDuration + "/" + musicDuration;
+					Message message = new Message();
+					message.what = 1;
+					message.getData().putString("durationShow", durationShow);
+					handler.sendMessage(message);
 				}
-				musicIndex = position;
+			};
+			timer.schedule(timerTask, 0, 10);
 
-			}
-		});
-
+		} catch (IOException e) {
+			Log.e(tag, Log.getStackTraceString(e));
+		}
+		musicIndex = position;
 	}
 
 	// @Override
@@ -544,6 +365,8 @@ public class MainActivity extends Activity {
 							sharedPreferences_Editor.putInt("musicIndex",
 									musicIndex);
 							sharedPreferences_Editor.putInt("duration",
+									mediaPlayer.getDuration());
+							sharedPreferences_Editor.putInt("currentposition",
 									mediaPlayer.getCurrentPosition());
 							sharedPreferences_Editor.commit();
 
