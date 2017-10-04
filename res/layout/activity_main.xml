@@ -51,32 +51,53 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
 
-        <LinearLayout
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_horizontal"
-            android:orientation="horizontal" >
+            android:layout_marginTop="5dp" >
 
             <ImageButton
-                android:id="@+id/prevButton"
+                android:id="@+id/orderButton"
                 android:layout_width="30dp"
                 android:layout_height="30dp"
-                android:background="@drawable/prevbutton" />
+                android:background="@drawable/unrandombutton" />
 
             <ImageButton
-                android:id="@+id/playButton"
+                android:id="@+id/cycleButton"
                 android:layout_width="30dp"
                 android:layout_height="30dp"
-                android:layout_marginLeft="30dp"
-                android:background="@drawable/playbutton" />
+                android:layout_alignParentRight="true"
+                android:background="@drawable/circlebutton" />
 
-            <ImageButton
-                android:id="@+id/nextButton"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:layout_marginLeft="30dp"
-                android:background="@drawable/nextbutton" />
-        </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_toLeftOf="@id/cycleButton"
+                android:layout_toRightOf="@id/orderButton"
+                android:gravity="center_horizontal"
+                android:orientation="horizontal" >
+
+                <ImageButton
+                    android:id="@+id/prevButton"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:background="@drawable/prevbutton" />
+
+                <ImageButton
+                    android:id="@+id/playButton"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_marginLeft="30dp"
+                    android:background="@drawable/playbutton" />
+
+                <ImageButton
+                    android:id="@+id/nextButton"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_marginLeft="30dp"
+                    android:background="@drawable/nextbutton" />
+            </LinearLayout>
+        </RelativeLayout>
     </LinearLayout>
 
 </LinearLayout>

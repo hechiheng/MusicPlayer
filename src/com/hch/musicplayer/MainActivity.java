@@ -39,7 +39,8 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
 	private static String tag = "MainActivityLog";
 	private ListView musicListView;
-	private ImageButton prevButton, playButton, nextButton;
+	private ImageButton prevButton, playButton, nextButton, orderButton,
+			cycleButton;
 	private TextView music_title, music_artist, music_duration;
 	private SeekBar music_seekbar;
 	private List<Map<String, Object>> musicList = new ArrayList<Map<String, Object>>();
@@ -54,6 +55,8 @@ public class MainActivity extends Activity {
 	private SharedPreferences.Editor sharedPreferences_Editor;
 	private int duration;// 歌曲时长
 	private int currentposition;// 播放歌曲当前时间
+	private boolean isRandom = false;// 是否随机播放
+	private boolean isListCycle = true;// 是否列表循环
 
 	private Handler handler = new Handler() {
 		@Override
@@ -82,6 +85,8 @@ public class MainActivity extends Activity {
 		prevButton = (ImageButton) findViewById(R.id.prevButton);
 		playButton = (ImageButton) findViewById(R.id.playButton);
 		nextButton = (ImageButton) findViewById(R.id.nextButton);
+		orderButton = (ImageButton) findViewById(R.id.orderButton);
+		cycleButton = (ImageButton) findViewById(R.id.cycleButton);
 		music_title = (TextView) findViewById(R.id.music_title);
 		music_artist = (TextView) findViewById(R.id.music_artist);
 		music_duration = (TextView) findViewById(R.id.music_duration);
@@ -92,6 +97,20 @@ public class MainActivity extends Activity {
 		musicIndex = sharedPreferences.getInt("musicIndex", -1);
 		duration = sharedPreferences.getInt("duration", 0);
 		currentposition = sharedPreferences.getInt("currentposition", 0);
+		isRandom = sharedPreferences.getBoolean("isRandom", false);
+		isListCycle = sharedPreferences.getBoolean("isListCycle", true);
+
+		if (isRandom) {
+			orderButton.setBackgroundResource(R.drawable.randombutton);
+		} else {
+			orderButton.setBackgroundResource(R.drawable.unrandombutton);
+		}
+
+		if (isListCycle) {
+			cycleButton.setBackgroundResource(R.drawable.circlebutton);
+		} else {
+			cycleButton.setBackgroundResource(R.drawable.singlebutton);
+		}
 
 		Cursor cursor = getContentResolver().query(
 				MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, null, null, null,
@@ -170,6 +189,15 @@ public class MainActivity extends Activity {
 		if (musicIndex > -1) {
 			String title = (String) musicList.get(musicIndex).get("title");
 			String artist = (String) musicList.get(musicIndex).get("artist");
+			String url = (String) musicList.get(musicIndex).get("url");
+			try {
+				mediaPlayer.setDataSource(url);
+				mediaPlayer.prepare();
+				mediaPlayer.seekTo(currentposition);
+			} catch (IOException e) {
+				Log.e(tag, Log.getStackTraceString(e));
+			}
+
 			music_title.setText(title);
 			music_artist.setText(artist);
 			music_seekbar.setMax(duration);// 设置进度条
@@ -198,7 +226,6 @@ public class MainActivity extends Activity {
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view,
 					int position, long id) {
-				mediaPlayer.reset();
 				playMusic(position, 0);
 			}
 		});
@@ -221,10 +248,18 @@ public class MainActivity extends Activity {
 					boolean fromUser) {
 				if (progress == music_seekbar.getMax() && !isSeekBarChanging) {
 					int position = musicIndex + 1;
-					if (position > musicList.size() - 1) {
-						position = 0;
+					// 列表循环
+					if (isListCycle) {
+						// 随机播放
+						if (isRandom) {
+							position = getRandomIndex();
+						} else if (position > musicList.size() - 1) {
+							position = 0;
+						}
+					} else {
+						position = musicIndex;
 					}
-					mediaPlayer.reset();
+
 					playMusic(position, 0);
 				}
 			}
@@ -242,7 +277,36 @@ public class MainActivity extends Activity {
 					timerTask.cancel();
 				} else {
 					playButton.setBackgroundResource(R.drawable.pausebutton);
-					playMusic(musicIndex, currentposition);
+					mediaPlayer.start();
+					timerTask = new TimerTask() {
+						@Override
+						public void run() {
+							if (isSeekBarChanging) {
+								return;
+							}
+							music_seekbar.setProgress(mediaPlayer
+									.getCurrentPosition());
+
+							String currentDuration = String.format(
+									"%02d:%02d",
+									TimeUnit.MILLISECONDS.toMinutes(mediaPlayer
+											.getCurrentPosition()),
+									TimeUnit.MILLISECONDS.toSeconds(mediaPlayer
+											.getCurrentPosition())
+											- TimeUnit.MINUTES
+													.toSeconds(TimeUnit.MILLISECONDS
+															.toMinutes(mediaPlayer
+																	.getCurrentPosition())));
+							String durationShow = currentDuration + "/"
+									+ musicDuration;
+							Message message = new Message();
+							message.what = 1;
+							message.getData().putString("durationShow",
+									durationShow);
+							handler.sendMessage(message);
+						}
+					};
+					timer.schedule(timerTask, 0, 10);
 				}
 
 			}
@@ -258,7 +322,6 @@ public class MainActivity extends Activity {
 				if (position < 0) {
 					return;
 				}
-				mediaPlayer.reset();
 				playMusic(position, 0);
 
 			}
@@ -267,12 +330,48 @@ public class MainActivity extends Activity {
 		nextButton.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
+				if (musicIndex == -1) {
+					return;
+				}
 				int position = musicIndex + 1;
 				if (position > musicList.size() - 1) {
 					return;
 				}
-				mediaPlayer.reset();
 				playMusic(position, 0);
+			}
+		});
+
+		orderButton.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				isRandom = isRandom == true ? false : true;
+				if (isRandom) {
+					orderButton.setBackgroundResource(R.drawable.randombutton);
+					Toast.makeText(MainActivity.this, "切换为随机播放",
+							Toast.LENGTH_SHORT).show();
+				} else {
+					orderButton
+							.setBackgroundResource(R.drawable.unrandombutton);
+					Toast.makeText(MainActivity.this, "切换为顺序播放",
+							Toast.LENGTH_SHORT).show();
+				}
+
+			}
+		});
+
+		cycleButton.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				isListCycle = isListCycle == true ? false : true;
+				if (isListCycle) {
+					cycleButton.setBackgroundResource(R.drawable.circlebutton);
+					Toast.makeText(MainActivity.this, "切换为列表循环",
+							Toast.LENGTH_SHORT).show();
+				} else {
+					cycleButton.setBackgroundResource(R.drawable.singlebutton);
+					Toast.makeText(MainActivity.this, "切换为单曲循环",
+							Toast.LENGTH_SHORT).show();
+				}
 			}
 		});
 
@@ -296,6 +395,7 @@ public class MainActivity extends Activity {
 			timerTask.cancel();
 		}
 		try {
+			mediaPlayer.reset();
 			mediaPlayer.setDataSource(url);
 			mediaPlayer.prepare();
 			mediaPlayer.seekTo(duration);
@@ -345,6 +445,15 @@ public class MainActivity extends Activity {
 		musicIndex = position;
 	}
 
+	private int getRandomIndex() {
+		int r = (int) (Math.random() * musicList.size());
+		if (r == musicIndex) {
+			getRandomIndex();
+		}
+
+		return r;
+	}
+
 	// @Override
 	public boolean onKeyDown(int keyCode, KeyEvent event) {
 		if (keyCode == KeyEvent.KEYCODE_BACK) {
@@ -368,6 +477,10 @@ public class MainActivity extends Activity {
 									mediaPlayer.getDuration());
 							sharedPreferences_Editor.putInt("currentposition",
 									mediaPlayer.getCurrentPosition());
+							sharedPreferences_Editor.putBoolean("isRandom",
+									isRandom);
+							sharedPreferences_Editor.putBoolean("isListCycle",
+									isListCycle);
 							sharedPreferences_Editor.commit();
 
 							dialog.dismiss();
